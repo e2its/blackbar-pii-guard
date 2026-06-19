@@ -91,10 +91,10 @@ All behavior is controlled by environment variables:
 
 ```bash
 # service mode, analyzer running:
-echo '{"prompt":"email me at jane@acme.com"}' | \
+echo '{"prompt":"summarize the notes on Ada Lovelace"}' | \
   python3 scripts/pii_filter.py UserPromptSubmit
 
-python3 scripts/presidio_client.py "Call John at 212-555-0184"
+python3 scripts/presidio_client.py "Ada Lovelace met Charles Babbage in London"
 ```
 
 ## Limitations & honesty

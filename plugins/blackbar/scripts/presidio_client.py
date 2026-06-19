@@ -212,7 +212,7 @@ class PresidioUnavailable(RuntimeError):
 if __name__ == "__main__":
     import sys
 
-    sample = " ".join(sys.argv[1:]) or "Email john.doe@acme.com or call 212-555-0184."
+    sample = " ".join(sys.argv[1:]) or "Ada Lovelace met Charles Babbage in London"
     client = PresidioClient()
     try:
         redacted, found = client.redact(sample)
