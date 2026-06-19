@@ -12,9 +12,15 @@ Per-event behaviour (all configurable via env vars):
                     so we either warn (inject additionalContext) or block.
                     PRESIDIO_GUARD_PROMPT_POLICY = warn | block | off   (warn)
 
-  PreToolUse        gate outbound network tools (WebFetch / WebSearch). PII in
-                    a URL or query would leave the machine, so we ask or deny.
-                    PRESIDIO_GUARD_EGRESS_POLICY = ask | block | warn | off (ask)
+  PreToolUse        two roles by tool:
+                    * egress tools (WebFetch / WebSearch): PII in a URL or query
+                      would leave the machine, so we ask or deny. Never decrypt.
+                      PRESIDIO_GUARD_EGRESS_POLICY = ask | block | warn | off (ask)
+                    * local tools (Bash / Write / Edit / ...): optionally decrypt
+                      <ENC:...> tokens in the tool input via updatedInput, so
+                      actions built from encrypted results use the real values
+                      locally. Pairs with RESULT_MODE=encrypt; needs a key.
+                      PRESIDIO_GUARD_INPUT_DECRYPT = on | off            (off)
 
   PostToolUse       scrub PII inside the tool RESULT before the model sees it,
                     via updatedToolOutput. The file/command output on disk is
@@ -118,16 +124,24 @@ def handle_user_prompt_submit(data: dict, client: PresidioClient) -> None:
 
 
 def handle_pre_tool_use(data: dict, client: PresidioClient) -> None:
+    tool = data.get("tool_name", "")
+    if tool in EGRESS_TOOLS:
+        _egress_guard(data, client, tool)
+    else:
+        _decrypt_tool_input(data, client, tool)
+    sys.exit(0)
+
+
+def _egress_guard(data: dict, client: PresidioClient, tool: str) -> None:
+    """Gate outbound network tools: PII in a URL/query would leave the machine.
+    We never decrypt here — sending real values out is exactly what we prevent."""
     policy = _env("PRESIDIO_GUARD_EGRESS_POLICY", "ask")
     if policy == "off":
-        sys.exit(0)
-    tool = data.get("tool_name", "")
-    if tool not in EGRESS_TOOLS:
-        sys.exit(0)
+        return
     blob = json.dumps(data.get("tool_input", {}))
     spans = client.analyze(blob)
     if not spans:
-        sys.exit(0)
+        return
     found = _summary(spans)
     reason = (
         f"blackbar: this {tool} request contains likely PII ({found}) "
@@ -142,7 +156,7 @@ def handle_pre_tool_use(data: dict, client: PresidioClient) -> None:
                 }
             }
         )
-        sys.exit(0)
+        return
     decision = "deny" if policy == "block" else "ask"
     _emit(
         {
@@ -153,7 +167,38 @@ def handle_pre_tool_use(data: dict, client: PresidioClient) -> None:
             }
         }
     )
-    sys.exit(0)
+
+
+def _decrypt_tool_input(data: dict, client: PresidioClient, tool: str) -> None:
+    """Restore <ENC:...> tokens inside a LOCAL tool's input via updatedInput, so
+    actions the model builds from encrypted results operate on the real values.
+    Opt-in (pairs with PRESIDIO_GUARD_RESULT_MODE=encrypt); never runs for
+    egress tools, so decrypted PII never leaves the machine."""
+    if _env("PRESIDIO_GUARD_INPUT_DECRYPT", "off") != "on":
+        return
+    key = bb_key.resolve_key(None)
+    if not key:
+        return
+    tool_input = data.get("tool_input", None)
+    if tool_input is None:
+        return
+    updated, count = client.map_strings(
+        tool_input, lambda s: bb_crypto.decrypt_text(s, key)
+    )
+    if count == 0:
+        return
+    _emit(
+        {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "updatedInput": updated,
+                "additionalContext": (
+                    f"[blackbar] restored {count} encrypted value(s) into this "
+                    f"{tool} call locally (they stay on your machine)."
+                ),
+            }
+        }
+    )
 
 
 def handle_post_tool_use(data: dict, client: PresidioClient) -> None:

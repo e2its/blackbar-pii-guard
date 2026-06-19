@@ -103,7 +103,8 @@ All behavior is controlled by environment variables:
 | `PRESIDIO_GUARD_THRESHOLD` | `0.0`–`1.0` | `0.5` | Minimum confidence to act |
 | `PRESIDIO_GUARD_ENTITIES` | comma list | (all) | Restrict to specific entity types |
 | `PRESIDIO_GUARD_PROMPT_POLICY` | `warn`, `block`, `off` | `warn` | Prompt boundary behavior |
-| `PRESIDIO_GUARD_EGRESS_POLICY` | `ask`, `block`, `warn`, `off` | `ask` | Outbound request behavior |
+| `PRESIDIO_GUARD_EGRESS_POLICY` | `ask`, `block`, `warn`, `off` | `ask` | Outbound request behavior (WebFetch/WebSearch) |
+| `PRESIDIO_GUARD_INPUT_DECRYPT` | `on`, `off` | `off` | Decrypt `<ENC:…>` tokens in **local** tool inputs (Bash/Write/Edit/…) so actions use real values; never for egress tools. Pairs with `encrypt` mode. |
 | `PRESIDIO_GUARD_RESULT_REDACTION` | `on`, `off` | `on` | Scrub tool results before the model sees them |
 | `PRESIDIO_GUARD_RESULT_MODE` | `redact`, `encrypt` | `redact` | `redact` = one-way placeholders; `encrypt` = reversible `<ENC:…>` tokens (needs a key) |
 | `BLACKBAR_KEY` / `BLACKBAR_KEY_FILE` | string / path | — / `~/.config/blackbar/key` | Session key for `encrypt` mode and the `blackbar` CLI. Create one with `blackbar keygen`. |

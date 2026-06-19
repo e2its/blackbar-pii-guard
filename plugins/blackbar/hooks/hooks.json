@@ -26,6 +26,18 @@
             "statusMessage": "Checking outbound request for PII"
           }
         ]
+      },
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/pii_filter.py", "PreToolUse"],
+            "timeout": 20,
+            "statusMessage": "Restoring encrypted values for tool"
+          }
+        ]
       }
     ],
     "PostToolUse": [
