@@ -1,0 +1,26 @@
+# Run the Presidio Analyzer as a local service for fast, in-memory PII detection.
+# The hooks call http://localhost:5002/analyze on each event, so the heavy spaCy
+# model loads ONCE here instead of on every short-lived hook process.
+#
+#   docker compose -f docker-compose.yml up -d
+#
+# Then point the plugin at it (this is the default):
+#   export PRESIDIO_ANALYZER_URL=http://localhost:5002
+#
+# The anonymizer image is optional — blackbar applies replace/redact/mask/
+# hash locally and only needs the analyzer. Add the anonymizer only if you want
+# the encrypt operator end-to-end without the Python library.
+
+services:
+  presidio-analyzer:
+    image: mcr.microsoft.com/presidio-analyzer:latest
+    ports:
+      - "5002:3000"
+    restart: unless-stopped
+
+  # Optional — uncomment to also run the anonymizer service.
+  # presidio-anonymizer:
+  #   image: mcr.microsoft.com/presidio-anonymizer:latest
+  #   ports:
+  #     - "5001:3000"
+  #   restart: unless-stopped

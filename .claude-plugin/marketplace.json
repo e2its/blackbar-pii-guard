@@ -1,0 +1,16 @@
+{
+  "name": "e2its",
+  "owner": {
+    "name": "e2its"
+  },
+  "description": "A privacy marketplace: Microsoft Presidio PII detection and redaction for Claude Code.",
+  "plugins": [
+    {
+      "name": "blackbar",
+      "source": "./plugins/blackbar",
+      "description": "Detect and redact PII with Microsoft Presidio across the Claude Code lifecycle.",
+      "category": "security",
+      "tags": ["privacy", "pii", "presidio", "redaction", "compliance"]
+    }
+  ]
+}

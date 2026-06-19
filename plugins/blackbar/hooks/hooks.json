@@ -1,0 +1,58 @@
+{
+  "description": "Presidio PII detection and redaction at the prompt, tool, and display boundaries",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/pii_filter.py", "UserPromptSubmit"],
+            "timeout": 20,
+            "statusMessage": "Scanning prompt for PII"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "WebFetch|WebSearch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/pii_filter.py", "PreToolUse"],
+            "timeout": 20,
+            "statusMessage": "Checking outbound request for PII"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read|Bash|WebFetch|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/pii_filter.py", "PostToolUse"],
+            "timeout": 20,
+            "statusMessage": "Redacting PII from tool result"
+          }
+        ]
+      }
+    ],
+    "MessageDisplay": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/pii_filter.py", "MessageDisplay"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

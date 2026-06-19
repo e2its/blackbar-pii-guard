@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate JSON manifests
+        run: |
+          for f in \
+            .claude-plugin/marketplace.json \
+            plugins/blackbar/.claude-plugin/plugin.json \
+            plugins/blackbar/hooks/hooks.json \
+            desktop/manifest.json \
+            desktop/package.json; do
+            python -c "import json; json.load(open('$f')); print('ok', '$f')"
+          done
+
+      - name: Compile Python scripts
+        run: python -m py_compile plugins/blackbar/scripts/*.py
+
+      - name: Check Node server
+        run: node --check desktop/server/index.js
+
+      - name: Validate MCPB manifest (best effort)
+        continue-on-error: true
+        run: |
+          npm install -g @anthropic-ai/mcpb
+          cd desktop && mcpb validate manifest.json

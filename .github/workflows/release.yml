@@ -1,0 +1,31 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pack the Claude Desktop extension (.mcpb)
+        run: |
+          cd desktop
+          # An .mcpb is a zip of the manifest + server. The official tool is
+          # `npm i -g @anthropic-ai/mcpb && mcpb pack`; a plain zip is equivalent
+          # and dependency-free for CI.
+          zip -r ../blackbar.mcpb manifest.json package.json server
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            blackbar.mcpb \
+            --title "${{ github.ref_name }}" \
+            --generate-notes

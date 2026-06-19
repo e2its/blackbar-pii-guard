@@ -1,0 +1,13 @@
+# blackbar runs with ZERO Python dependencies in the default "service"
+# mode (it talks to the analyzer over HTTP using only the standard library).
+#
+# Install these ONLY if you want:
+#   * library mode (PRESIDIO_GUARD_MODE=library), or
+#   * the reversible `encrypt` operator in the MCP server.
+#
+#   pip install -r requirements.txt
+#   python -m spacy download en_core_web_lg
+
+presidio-analyzer>=2.2
+presidio-anonymizer>=2.2
+spacy>=3.7
