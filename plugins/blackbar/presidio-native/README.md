@@ -6,7 +6,7 @@ financial detection **without containers**. It serves the exact same
 `presidio_client.py` talks to `http://localhost:5002` in either mode.
 
 `analyzer_service.py` here is the **single source of truth** for detection
-coverage; the Docker image (`../presidio-eu/Dockerfile`) bakes the very same
+coverage; the Docker image (`./Dockerfile`, same directory) bakes the very same
 file, so Docker and native detect identically.
 
 ## When to use which
