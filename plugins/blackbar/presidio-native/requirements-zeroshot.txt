@@ -1,0 +1,6 @@
+# Optional Layer 2 (zero-shot Art. 9 detection) dependencies.
+# Install ONLY if you enable BLACKBAR_ENABLE_ZEROSHOT=1 — these are large
+# (torch is hundreds of MB) and the model (~280 MB) downloads on first use.
+#   pip install -r requirements-zeroshot.txt
+transformers>=4.40
+torch>=2.2
