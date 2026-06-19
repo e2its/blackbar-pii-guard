@@ -1,0 +1,4 @@
+# Native (no-Docker) blackbar analyzer service dependencies.
+# spaCy models are fetched separately by setup.sh (python -m spacy download).
+presidio-analyzer>=2.2
+flask>=3.0

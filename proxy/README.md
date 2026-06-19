@@ -1,4 +1,4 @@
-# blackbar proxy — transparent anonymization for Claude Code (API key)
+# Myrmion blackbar proxy — transparent anonymization for Claude Code (API key)
 
 Path 3 of the [anonymization architecture](../docs/architecture-anonymization.md):
 a local proxy that makes the round-trip **fully transparent** — you type and read

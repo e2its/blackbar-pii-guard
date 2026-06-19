@@ -1,4 +1,4 @@
-# blackbar for Claude Desktop
+# Myrmion blackbar for Claude Desktop
 
 The on-demand half of blackbar, packaged as a one-click Claude Desktop
 extension (`.mcpb`). Zero dependencies — a small Node server that ships with the

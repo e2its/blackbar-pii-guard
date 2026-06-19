@@ -8,7 +8,7 @@
     {
       "name": "blackbar",
       "source": "./plugins/blackbar",
-      "description": "Detect and redact PII with Microsoft Presidio across the Claude Code lifecycle.",
+      "description": "Myrmion blackbar — detect and redact PII/PHI/financial data with Microsoft Presidio across the Claude Code lifecycle.",
       "category": "security",
       "tags": ["privacy", "pii", "presidio", "redaction", "compliance"]
     }

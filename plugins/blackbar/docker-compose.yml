@@ -13,10 +13,14 @@
 
 services:
   presidio-analyzer:
-    # Multilingual analyzer (en, es, pt, fr, de, it + Spanish DNI/NIE).
-    # `docker compose up` pulls it from Docker Hub once it's published. To build
-    # it yourself instead, see ../../docs/presidio-multilang/. For English only,
-    # swap this line for: mcr.microsoft.com/presidio-analyzer:latest
+    # Comprehensive PII/PHI/financial analyzer (en, es, fr, de, it, pt), md
+    # spaCy models by default. Runs the shared analyzer_service.py — the same
+    # service as the no-Docker native path. The image is published, so this
+    # pulls automatically; use :lg for the large models. To build a custom
+    # variant instead (pick languages/size with build args LANGS, MODEL_SIZE):
+    #   docker build -t e2its/presidio-analyzer-multilang:latest ./presidio-native
+    # For English only, swap the image line for:
+    #   mcr.microsoft.com/presidio-analyzer:latest
     image: e2its/presidio-analyzer-multilang:latest
     ports:
       - "5002:3000"

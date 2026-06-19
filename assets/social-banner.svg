@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="1280" height="640" viewBox="0 0 1280 640">
+  <!-- background -->
+  <rect width="1280" height="640" fill="#ffffff"/>
+  <rect x="0" y="0" width="1280" height="10" fill="#F08A1D"/>
+  <rect x="0" y="630" width="1280" height="10" fill="#16456A"/>
+
+  <!-- ant logo (relative href; convert from assets/) -->
+  <image xlink:href="myrmion-logo.png" x="70" y="185" width="300" height="300"/>
+
+  <!-- wordmark -->
+  <text x="410" y="245" font-family="DejaVu Sans, Arial, sans-serif" font-size="62"
+        font-weight="bold" fill="#16456A">Myrmion <tspan fill="#0f3350">blackbar</tspan></text>
+
+  <!-- tagline -->
+  <text x="412" y="298" font-family="DejaVu Sans, Arial, sans-serif" font-size="28"
+        fill="#5b6b7a">Privacy guard for Claude</text>
+  <text x="412" y="336" font-family="DejaVu Sans, Arial, sans-serif" font-size="23"
+        fill="#94a2ae">Local PII · PHI · financial redaction · Microsoft Presidio · 6 languages</text>
+
+  <!-- "product in action" censor-bar demo card -->
+  <rect x="410" y="372" width="800" height="138" rx="14" fill="#f4f6f8" stroke="#e2e8ee" stroke-width="2"/>
+  <g font-family="DejaVu Sans Mono, monospace" font-size="25" fill="#3a4754">
+    <text x="438" y="424">me llamo</text>
+    <rect x="578" y="403" width="180" height="29" rx="6" fill="#10131a"/>
+    <text x="778" y="424">y mi DNI es</text>
+    <rect x="958" y="403" width="150" height="29" rx="6" fill="#10131a"/>
+
+    <text x="438" y="478">diagnóstico</text>
+    <rect x="628" y="457" width="140" height="29" rx="6" fill="#10131a"/>
+    <text x="788" y="478">· IBAN</text>
+    <rect x="888" y="457" width="220" height="29" rx="6" fill="#10131a"/>
+  </g>
+
+  <!-- badges row -->
+  <g font-family="DejaVu Sans, Arial, sans-serif" font-size="19">
+    <rect x="410" y="544" width="156" height="34" rx="17" fill="#16456A"/>
+    <text x="432" y="567" fill="#ffffff">Claude Code</text>
+    <rect x="578" y="544" width="186" height="34" rx="17" fill="#16456A"/>
+    <text x="600" y="567" fill="#ffffff">Claude Desktop</text>
+    <rect x="776" y="544" width="96" height="34" rx="17" fill="#F08A1D"/>
+    <text x="798" y="567" fill="#ffffff">GDPR</text>
+    <rect x="884" y="544" width="140" height="34" rx="17" fill="#F08A1D"/>
+    <text x="906" y="567" fill="#ffffff">EU AI Act</text>
+  </g>
+</svg>

@@ -31,7 +31,9 @@ jobs:
           done
 
       - name: Compile Python scripts
-        run: python -m py_compile plugins/blackbar/scripts/*.py
+        run: |
+          python -m py_compile plugins/blackbar/scripts/*.py
+          python -m py_compile plugins/blackbar/presidio-native/*.py
 
       - name: Check Node server
         run: node --check desktop/server/index.js
@@ -41,3 +43,39 @@ jobs:
         run: |
           npm install -g @anthropic-ai/mcpb
           cd desktop && mcpb validate manifest.json
+
+  # Build the native analyzer (en + es only, for speed) and assert it really
+  # detects PII/PHI/financial + GDPR Art. 9 — the same service the Docker image runs.
+  analyzer-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install analyzer + en/es models
+        run: |
+          pip install --quiet -r plugins/blackbar/presidio-native/requirements.txt
+          python -m spacy download en_core_web_md
+          python -m spacy download es_core_news_md
+
+      - name: Start analyzer and assert detection
+        env:
+          BLACKBAR_LANGUAGES: "en,es"
+          PORT: "5002"
+        run: |
+          python plugins/blackbar/presidio-native/analyzer_service.py &
+          for i in $(seq 1 60); do curl -sf localhost:5002/health >/dev/null && break; sleep 2; done
+          curl -sf localhost:5002/health; echo
+          assert() {  # <lang> <text> <expected-entity>
+            curl -s -X POST localhost:5002/analyze \
+              -H "Content-Type: application/json" \
+              -d "{\"text\":\"$2\",\"language\":\"$1\"}" | grep -q "$3" \
+              && echo "ok  $3" || { echo "FAIL $3 in: $2"; exit 1; }
+          }
+          assert es "mi DNI es 12345678Z"               ES_NIF
+          assert en "contact ada@example.com"           EMAIL_ADDRESS
+          assert es "IBAN ES9121000418450200051332"     IBAN_CODE
+          assert es "es VIH positivo y es musulman"     HEALTH_CONDITION

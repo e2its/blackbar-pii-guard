@@ -1,4 +1,4 @@
-# blackbar
+# Myrmion blackbar
 
 PII detection and redaction for Claude Code and Claude for VS Code, powered by
 [Microsoft Presidio](https://github.com/microsoft/presidio).

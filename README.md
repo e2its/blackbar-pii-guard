@@ -1,152 +1,608 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="blackbar — PII redaction for Claude Code & Claude Desktop" width="100%">
+  <img src="assets/myrmion-logo.png" alt="Myrmion" width="140">
 </p>
+
+<h1 align="center">Myrmion blackbar</h1>
+
+<p align="center"><i>Privacy guard for Claude — local PII / PHI / financial redaction powered by Microsoft Presidio</i></p>
 
 <p align="center">
   <a href="#license"><img src="https://img.shields.io/badge/license-MIT-1D9E75" alt="MIT license"></a>
   <img src="https://img.shields.io/badge/Claude_Code-plugin-378ADD" alt="Claude Code plugin">
   <img src="https://img.shields.io/badge/Claude_Desktop-.mcpb-378ADD" alt="Claude Desktop extension">
   <img src="https://img.shields.io/badge/engine-Microsoft_Presidio-7F77DD" alt="Microsoft Presidio">
-  <img src="https://img.shields.io/badge/PII-redaction-444">
+  <img src="https://img.shields.io/badge/PII%2FPHI-redaction-444">
 </p>
 
 <p align="center">
-  <b>blackbar</b> keeps personal data out of the model. It detects PII with
-  <a href="https://github.com/microsoft/presidio">Microsoft Presidio</a> and
-  scrubs it at the boundaries where it matters — automatically in Claude Code,
-  on demand in Claude Desktop. Scrubbing can be one-way <i>or</i> <b>reversible</b>:
-  encrypt PII into tokens and restore the originals later with your key.
+  <b>Myrmion blackbar puts a censor bar over your personal data before it ever reaches the AI.</b>
 </p>
 
 ---
 
-## Why
+## Table of contents
 
-When you point an AI agent at real files, real commands, and the live web, personal
-data leaks in by accident — an email in a log, a customer name in a CSV, an SSN in a
-stack trace. `blackbar` puts a redaction layer between your machine and the model so
-that data is caught before it travels.
+**Start here (everyone)**
+1. [What is blackbar, in plain words](#1-what-is-blackbar-in-plain-words)
+2. [Why you might need it](#2-why-you-might-need-it)
+3. [What it protects](#3-what-it-protects)
+4. [How it works (the simple picture)](#4-how-it-works-the-simple-picture)
+5. [Which version is for me?](#5-which-version-is-for-me)
+6. [Get started in 3 steps](#6-get-started-in-3-steps)
 
-The honest framing: in **Claude Code** it's a *filter in the pipe* — tool results are
-scrubbed automatically. In **Claude Desktop** it's a *tap you turn on* — you ask it to
-scan or anonymize text, because Desktop only loads third-party code as MCP tools, not
-lifecycle hooks.
+**Set up your version**
+7. [Claude Code](#7-claude-code-automatic-protection)
+8. [Claude Desktop](#8-claude-desktop-on-demand-protection)
+9. [Transparent proxy](#9-transparent-proxy-advanced-api-key)
 
-## What it does
+**Understand & troubleshoot**
+10. [Reversible anonymization, explained simply](#10-reversible-anonymization-explained-simply)
+11. [Frequently asked questions](#11-frequently-asked-questions)
+12. [Troubleshooting](#12-troubleshooting)
+13. [Glossary (plain-language)](#13-glossary-plain-language)
+14. [Good to know (limits & honesty)](#14-good-to-know-limits--honesty)
 
-| Boundary | Where | What blackbar can do | Default |
-| --- | --- | --- | --- |
-| Your prompt | `UserPromptSubmit` | detect → **warn** or **block** (a hook can't rewrite a prompt) | warn |
-| Outbound request | `PreToolUse` (`WebFetch`, `WebSearch`) | detect → **ask** or **block** before PII leaves the machine | ask |
-| Tool result | `PostToolUse` (`Read`, `Bash`, `WebFetch`, …) | **redact** PII before the model sees it | on |
-| On screen | `MessageDisplay` | **redact** displayed text (display only) | off |
-| On demand | MCP tools | `presidio_analyze` · `presidio_anonymize` | — |
+**For technical users**
+15. [Reference (commands, settings, structure)](#15-reference-for-technical-users)
+    - [Command & interface reference](#command--interface-reference) (CLI · slash · MCP)
+16. [License](#license)
 
-> The strongest win is the tool-result boundary: it scrubs what the model ingests
-> **without changing the file on disk or what your command actually ran.**
+---
 
-## Quickstart — Claude Code (and Claude for VS Code)
+## 1. What is blackbar, in plain words
 
-```bash
-# 1. Run the local Presidio analyzer (detection stays on your machine)
-docker compose -f plugins/blackbar/docker-compose.yml up -d
+When you use an AI assistant like **Claude**, everything you type or paste — and every
+file or web page the AI reads for you — is **sent off your computer** to be processed. If
+that text contains personal information (a customer's name, an email, a national ID, a
+medical diagnosis, a bank account), it leaves your control the moment it's sent.
 
-# 2. Add the marketplace and install the plugin
-/plugin marketplace add e2its/blackbar-pii-guard
-/plugin install blackbar@e2its
-```
+**Myrmion blackbar** is a small guard that runs **on your own computer**. Think of it as the
+black marker a clerk uses to censor a document before sharing it: it scans your text, **finds the
+personal data, and blacks it out** (for example, turning `ada@example.com` into
+`<EMAIL_ADDRESS>`) **before the AI sees it**.
 
-That's it. The hooks start guarding immediately; tune behavior with environment
-variables (see [`plugins/blackbar/README.md`](plugins/blackbar/README.md)).
+The detection happens **entirely on your machine** — blackbar does not send your text to
+any outside service to find the personal data. It uses an open-source engine from Microsoft
+called **Presidio**.
 
-## Quickstart — Claude Desktop
+You can make the change **permanent** (the original is gone) or **reversible** (blackbar
+can put the real values back later, but only on your computer, with your secret key).
 
-```bash
-# Same analyzer service as Claude Code (one local container on port 5002)
-docker compose -f plugins/blackbar/docker-compose.yml up -d
-```
+---
 
-Then drag **`blackbar.mcpb`** onto Claude Desktop (or Settings → Extensions →
-Install Extension). The bundle is a zero-dependency Node server — no Python, no
-install. Ask Claude: *"scan this for PII"* or *"anonymize this with masking."*
-Details in [`desktop/README.md`](desktop/README.md).
+## 2. Why you might need it
 
-## On-demand tools
+- **Accidental leaks are easy.** A name in a spreadsheet, an email in a log file, an ID in a
+  support ticket — it's simple to paste something sensitive without noticing.
+- **The law cares.** Under the EU's **GDPR** and the new **EU AI Act**, you are responsible
+  for protecting people's personal data. Feeding real customer or patient data into an AI
+  can put you on the wrong side of those rules. blackbar lowers that risk by removing the
+  data before it travels.
+- **Subscriptions, too.** If you use Claude on a **Pro/Max subscription** (not a developer
+  API key), blackbar still works — through the Claude Code plugin and a copy-paste helper —
+  without touching your login.
 
-| Tool | Purpose |
+> blackbar is a **safety net**, not a magic shield. It catches the large majority of common
+> personal data, but no tool is perfect — keep a person in the loop for anything sensitive.
+
+---
+
+## 3. What it protects
+
+In everyday terms, blackbar recognises things like:
+
+- **Who someone is:** names, home/postal addresses, email addresses, phone numbers.
+- **Online identifiers:** IP addresses, website links, device (MAC) addresses, dates.
+- **Money:** credit-card numbers, bank account numbers (IBAN), bank codes (SWIFT/BIC),
+  VAT/tax numbers, crypto wallet addresses.
+- **Official IDs:** Spanish DNI/NIE, Portuguese NIF, German tax ID, Italian fiscal code,
+  US Social Security numbers, passports.
+- **Social security numbers:** Spain (NUSS), France (NIR), United States.
+- **Health information:** medical record/insurance numbers, diagnosis codes (ICD‑10),
+  medical license numbers.
+- **Sensitive "special category" data (GDPR Art. 9):** mentions of someone's health,
+  religion, political views, ethnic origin, sexual orientation, or trade-union membership.
+
+It understands **six languages**: English, Spanish, French, German, Italian and Portuguese.
+
+**What is active by default**
+
+Everything above works **out of the box, with no configuration** — including the GDPR
+Art. 9 special categories. The full list of entity types blackbar detects and can censor:
+
+| Group | Entity types (always on) |
 | --- | --- |
-| `presidio_analyze(text, language?, entities?)` | find PII: types, spans, scores |
-| `presidio_anonymize(text, operator?, key?)` | `replace` · `redact` · `mask` · `hash` · `encrypt` |
-| `presidio_decrypt(text, key)` | reverse `encrypt`: restore `<ENC:…>` tokens with the same key |
+| Identity & contact | `PERSON` · `LOCATION` · `EMAIL_ADDRESS` · `PHONE_NUMBER` · `URL` · `IP_ADDRESS` · `MAC_ADDRESS` · `DATE_TIME` |
+| Financial | `CREDIT_CARD` · `IBAN_CODE` · `SWIFT_BIC` · `EU_VAT` · `CRYPTO` |
+| National & social-security IDs | `ES_NIF` · `ES_NIE` · `PT_NIF` · `DE_STEUER_ID` · `IT_FISCAL_CODE` · `US_SSN` · `PASSPORT_GENERIC` · `ES_SSN` · `FR_NIR_SSN` |
+| Health / PHI | `MEDICAL_LICENSE` · `UK_NHS` · `HEALTH_RECORD` · `ICD10_CODE` |
+| Special categories (Art. 9) | `HEALTH_CONDITION` · `RELIGIOUS_BELIEF` · `POLITICAL_OPINION` · `ETHNIC_ORIGIN` · `SEXUAL_ORIENTATION` · `TRADE_UNION` |
 
-Only `encrypt` is reversible — it emits self-contained `<ENC:TYPE:…>` tokens
-(zero extra dependencies on either client) that `presidio_decrypt` turns back
-into the originals with the same key; the same token decrypts in both Claude
-Code and Claude Desktop. The other operators are one-way.
+The **only** optional piece is the Layer 2 zero-shot classifier (for *paraphrased*
+special-category data, e.g. "he's been feeling very low"); it is **off by default** and
+enabled with `BLACKBAR_ENABLE_ZEROSHOT=1` (see §15). Every entity above can be transformed
+with any operator (`replace` / `redact` / `mask` / `hash` / `encrypt`).
 
-Slash commands in Claude Code: `/blackbar:scan`, `/blackbar:anonymize`, and
-`/blackbar:decrypt`.
+---
 
-## Reversible round-trip — and using it on a Pro/Max subscription
+## 4. How it works (the simple picture)
 
-`encrypt` is the reversible operator: each value becomes a self-contained
-`<ENC:TYPE:…>` token you can restore locally with your key, so you can work over
-anonymized text and de-anonymize the result. How *transparent* that is depends on
-the surface — there are three paths:
+```
+        YOUR COMPUTER                                  THE AI (cloud)
+  ┌────────────────────────────┐
+  │  your text / files / logs  │
+  │            │               │
+  │            ▼               │
+  │     ┌─────────────┐        │      only the safe,
+  │     │  blackbar   │  ───►  │  ───►  censored text
+  │     │ finds & hides│       │        leaves your machine
+  │     │  personal    │       │
+  │     │  data        │  ◄──  │  ◄───  the AI's reply
+  │     └─────────────┘        │        (originals restored
+  │   (Presidio runs here,     │         locally if reversible)
+  │    nothing is sent out      │
+  │    just to detect)         │
+  └────────────────────────────┘
+```
 
-| Path | Where | Transparency | Needs |
+There are two small pieces:
+
+1. **The analyzer** — a local helper that holds the language models and finds the personal
+   data. You start it once; it runs quietly in the background on your computer.
+2. **The connector** — the part that plugs into Claude (a plugin, a desktop extension, or a
+   proxy) and actually does the censoring at the right moment.
+
+---
+
+## 5. Which version is for me?
+
+| If you use… | Choose | What you get |
+| --- | --- | --- |
+| **Claude Code** (terminal or VS Code) | [Claude Code plugin](#7-claude-code-automatic-protection) | **Automatic** — censors what the AI reads, plus on-demand commands |
+| **Claude Desktop** (the app) | [Desktop extension](#8-claude-desktop-on-demand-protection) | **On-demand** — you ask "scan/anonymize this" |
+| **Claude Code with a developer API key** and you want it fully invisible | [Transparent proxy](#9-transparent-proxy-advanced-api-key) | You type/read normal text; the AI only sees censored text |
+| **Any website/app** (claude.ai, browser extension, Office) | the copy-paste helper (works on subscriptions) | Censor on copy, restore on paste — see [§10](#10-reversible-anonymization-explained-simply) |
+
+Not sure? If you mostly work in **Claude Code**, pick that — it's the most automatic.
+
+---
+
+## 6. Get started in 3 steps
+
+Every version needs the same first piece: **the analyzer** running on your computer. You
+only do this once.
+
+### Step 1 — Download blackbar
+
+```bash
+git clone https://github.com/e2its/myrmion-blackbar-pii-guard.git
+cd myrmion-blackbar-pii-guard
+```
+
+### Step 2 — Start the analyzer (no Docker required)
+
+```bash
+cd plugins/blackbar/presidio-native
+./setup.sh     # first time only: prepares everything and downloads the models (a few minutes)
+./run.sh       # starts the analyzer — leave this window open
+```
+
+> Prefer Docker? The image is **published**, so just run
+> `docker compose -f plugins/blackbar/docker-compose.yml up -d` — it pulls
+> `e2its/presidio-analyzer-multilang:latest` (or `:lg` for the large models). Build it
+> yourself only to customise languages/size. Both behave identically.
+
+### Step 3 — Check it's working
+
+Open a **second** terminal window and run:
+
+```bash
+curl http://localhost:5002/health
+```
+
+You should see something like `{"status":"ok", ...}`. That's it — now set up your version
+below. 🎉
+
+*(Brand-new to the terminal? See the [extra-detailed walkthrough](#a-completely-new-to-the-terminal) at the end.)*
+
+---
+
+## 7. Claude Code (automatic protection)
+
+**Best for:** people working in the Claude Code terminal or the VS Code extension.
+
+### What you get
+
+- **Automatic censoring** of anything the AI reads for you (files, command output, web
+  pages) — *the file on your disk and what your commands actually do are never changed*,
+  only what the AI sees.
+- A **warning** if your own prompt contains personal data.
+- A **prompt before** any web request that would send personal data out.
+- **Commands** you can run yourself: `/blackbar:scan`, `/blackbar:anonymize`,
+  `/blackbar:decrypt`.
+
+### Install
+
+1. Make sure the analyzer is running (steps in §6).
+2. In Claude Code, run:
+   ```
+   /plugin marketplace add e2its/myrmion-blackbar-pii-guard
+   /plugin install blackbar@e2its
+   ```
+
+That's it — protection starts immediately.
+
+### How to use it
+
+- **Just work normally.** Censoring of what the AI reads happens by itself.
+- **Check a piece of text:** `/blackbar:scan "Contact Ada at ada@example.com"`
+- **Clean a piece of text:** `/blackbar:anonymize "my DNI is 12345678Z"`
+- **Restore reversible tokens:** `/blackbar:decrypt "...<ENC:…> ..."`
+
+### Examples (what goes in → what comes out)
+
+These are **real, verified** outputs. The slash commands call the tools under the hood; the
+full per-command reference (arguments, raw output) is in [§15](#command--interface-reference).
+
+**Censor — replace (default style)**
+```
+in : me llamo Ada Lovelace y mi DNI es 12345678Z      (Spanish)
+out: me llamo <PERSON> y mi DNI es <ES_NIF>
+```
+
+**Censor — mask / hash**
+```
+mask: card 4111 1111 1111 1111   →  card ***************1111
+hash: contact ada@example.com    →  contact <EMAIL_ADDRESS:b5fc85e557>
+```
+(`mask` blanks the whole value keeping the last 4 characters; `hash` is a short
+deterministic digest of the original.)
+
+**Special-category data — on by default (Art. 9)**
+```
+in : diabetes tipo 2 y es musulmán
+out: <HEALTH_CONDITION> tipo 2 y es <RELIGIOUS_BELIEF>
+```
+
+**Reversible — encrypt now, restore later (needs a key)**
+```
+/blackbar:anonymize "patient Ada Lovelace, DNI 12345678Z" --operator encrypt
+→ patient <ENC:PERSON:ATG_ypu6cphKx…> , DNI <ENC:ES_NIF:ATG_ypu6cphKx…>
+
+/blackbar:decrypt "patient <ENC:PERSON:ATG_ypu6cphKx…> , DNI <ENC:ES_NIF:ATG_ypu6cphKx…>"
+→ patient Ada Lovelace, DNI 12345678Z
+```
+
+*(Reversible mode needs a one-time key: run `bin/blackbar keygen`, or pass a key. More in
+[§10](#10-reversible-anonymization-explained-simply).)*
+
+---
+
+## 8. Claude Desktop (on-demand protection)
+
+**Best for:** people using the Claude Desktop app who want to clean text when they choose.
+
+### What you get
+
+Three tools you can ask Claude to use — **no automatic background censoring** (the desktop
+app doesn't allow that for add-ons):
+
+- *scan* — find personal data in a piece of text.
+- *anonymize* — censor it (replace / mask / hash / redact / encrypt).
+- *decrypt* — put reversible values back.
+
+### Install
+
+1. Make sure the analyzer is running (steps in §6).
+2. In Claude Desktop: **Settings → Extensions → Install Extension…**, then choose the
+   `blackbar.mcpb` file (or drag it onto the window). Approve it.
+
+### How to use it & examples
+
+Ask Claude in plain language; it calls the tools and shows the result:
+
+```
+You: "Scan this:  me llamo Ada Lovelace y mi DNI es 12345678Z"
+→ PERSON (Ada Lovelace), ES_NIF (12345678Z)
+
+You: "Anonymize it."
+→ me llamo <PERSON> y mi DNI es <ES_NIF>
+```
+
+### Reversible on Desktop — you manage the key ⚠️
+
+This is the key difference from Claude Code. The Desktop extension has **no key storage and
+keeps no mapping or "pairs" file** — the `<ENC:…>` token is *self-contained* (the value is
+encrypted inside it). So you must **give Claude a key when you encrypt and the same key when
+you decrypt**, and keep that key yourself:
+
+```
+You: "Encrypt the PII in this with key swordfish-42:
+      patient Ada Lovelace, DNI 12345678Z"
+→ patient <ENC:PERSON:…>, DNI <ENC:ES_NIF:…>
+
+You (later, even in a new chat): "Decrypt this with key swordfish-42:
+      patient <ENC:PERSON:…>, DNI <ENC:ES_NIF:…>"
+→ patient Ada Lovelace, DNI 12345678Z
+```
+
+If you lose the key, the values **cannot** be recovered — there is no stored copy anywhere.
+(In Claude Code and the CLI you can instead save the key once with `bin/blackbar keygen` and
+it's reused automatically; Desktop has no such file, by design.)
+
+---
+
+## 9. Transparent proxy (advanced, API key)
+
+**Best for:** technical users running Claude Code with a **developer API key** who want the
+protection to be completely invisible — you read and type normal text, and the AI only ever
+receives censored text.
+
+> ⚠️ **Not for Pro/Max subscriptions.** This method needs an API key from
+> `console.anthropic.com`. Sending a subscription login through a proxy is against
+> Anthropic's rules. On a subscription, use the Claude Code plugin (§7) and the copy-paste
+> helper instead.
+
+### Install & use
+
+```bash
+bin/blackbar keygen                              # one-time secret key
+python3 proxy/blackbar_proxy.py                  # starts the proxy on port 8787
+
+# in the window that launches Claude Code:
+export ANTHROPIC_BASE_URL=http://localhost:8787
+export ANTHROPIC_API_KEY=sk-ant-...              # your Console API key
+```
+
+Then use Claude Code normally. Personal data in your messages is censored on the way out
+and the AI's reply is un-censored on your computer (even while it streams in).
+
+```
+You type   : "Summarise the file for patient Ada Lovelace (DNI 12345678Z)."
+The AI sees: "Summarise the file for patient <ENC:PERSON:…> (<ENC:ES_NIF:…>)."
+You read   : the reply with the real name and ID put back, automatically.
+```
+
+---
+
+## 10. Reversible anonymization, explained simply
+
+Sometimes you want to **work over censored text and then get the originals back** — for
+example, ask the AI to rewrite a letter, then restore the real names in the result.
+
+blackbar's **encrypt** option does this. Each piece of personal data becomes a token like
+`<ENC:PERSON:…>`. The token is meaningless to anyone else, but **with your secret key, on
+your computer**, blackbar turns it back into the original. The key never leaves your machine.
+
+1. Create your key once: `bin/blackbar keygen`
+2. Censor with encrypt, share the censored text with the AI, then restore with `decrypt`.
+
+There are three ways to use it, from most automatic to most universal:
+
+| Way | Where it works | How automatic |
+| --- | --- | --- |
+| Built into the plugin (`encrypt` mode) | Claude Code | automatic for what the AI reads |
+| The copy-paste helper (a keyboard shortcut) | **anywhere** — claude.ai, browser extension, Office, Desktop | one shortcut to censor, one to restore |
+| The transparent proxy | Claude Code with an API key | fully invisible |
+
+The copy-paste helper is the **subscription-friendly** option that works on any website.
+Recipes for macOS, Windows and Linux: [`docs/clipboard.md`](docs/clipboard.md).
+
+---
+
+## 11. Frequently asked questions
+
+**Is my data sent anywhere to be scanned?**
+No. Detection runs entirely on your computer. Only the *already-censored* text is sent to
+the AI (and that's the whole point).
+
+**Does it change my files?**
+No. blackbar only changes what the **AI sees**. Your files on disk and your commands are
+untouched.
+
+**Can I use it on a Pro/Max subscription?**
+Yes — with the Claude Code plugin (§7) and the copy-paste helper (§10). The proxy (§9) is
+the only part that needs a developer API key.
+
+**Will it catch everything?**
+It catches the large majority of common personal data and was validated at 100% on a tough
+multilingual test set, but no detector is perfect. Treat it as a strong safety net, not a
+guarantee — review anything sensitive yourself.
+
+**Do I need to know how to code?**
+No. Follow §6 and your version's section. The only "technical" part is copy-pasting a few
+commands once.
+
+---
+
+## 12. Troubleshooting
+
+- **`curl http://localhost:5002/health` shows an error** — the analyzer isn't running yet,
+  or is still loading its models. Start it (§6, Step 2) and wait a few seconds.
+- **Docker can't download the image** — it isn't published yet; build it locally first
+  (the `docker build …` line in §6).
+- **On a VPN, downloads hang** — some VPNs (e.g. Surfshark) interfere with Docker's
+  networking. Easiest fix: use the **native** option (no Docker) in §6.
+- **It missed some data** — you can add your own patterns; see §15.
+- **Still stuck?** Open an issue on the project's GitHub page.
+
+---
+
+## 13. Glossary (plain-language)
+
+- **PII** — *Personally Identifiable Information*: anything that identifies a person (name,
+  email, phone, ID number…).
+- **PHI** — *Protected Health Information*: medical data (diagnoses, record numbers).
+- **GDPR** — the EU's data-protection law.
+- **EU AI Act** — the EU's law on using AI responsibly, including with personal data.
+- **Special category data (Art. 9)** — extra-sensitive data: health, religion, politics,
+  ethnicity, sexual orientation, union membership.
+- **Anonymize / redact / censor** — remove or hide personal data from text.
+- **Encrypt (reversible)** — replace data with a token you can turn back later with your key.
+- **Key** — your private secret that makes reversible restore possible; stays on your computer.
+- **Analyzer** — the local helper that finds the personal data.
+- **Presidio** — the open-source Microsoft engine blackbar uses to detect data.
+- **Entity** — one detected item and its type, e.g. an `EMAIL_ADDRESS`.
+- **Hook** — an automatic check Claude Code runs at certain moments (used for auto-censoring).
+- **Plugin / extension** — the add-on you install into Claude Code / Claude Desktop.
+- **Proxy** — a local relay that sits between Claude and the internet to censor traffic.
+- **Token (`<ENC:…>`)** — a censored, restorable stand-in for a real value.
+- **Terminal** — the text window where you type commands.
+
+---
+
+## 14. Good to know (limits & honesty)
+
+- **Not perfect.** Detection is high-recall but can miss unusual formats or make mistakes —
+  keep a human in the loop for regulated data.
+- **Sensitive free text is best-effort.** Detecting health/religion/etc. *described in
+  sentences* (not just named) is genuinely hard; blackbar tries (lexicons + an optional
+  local AI classifier) but does not guarantee it.
+- **Prompts can be warned about, not silently rewritten** (a Claude Code rule).
+- **Claude Desktop** gets the on-demand tools only, not automatic background protection.
+- **The proxy is for API keys**, not subscriptions.
+- **Independent project** — not affiliated with or endorsed by Anthropic or Microsoft.
+
+---
+
+## 15. Reference (for technical users)
+
+### Command & interface reference
+
+blackbar exposes the same capabilities through three interfaces. Detection settings (the
+`PRESIDIO_*` env vars below) apply to all of them.
+
+#### A. CLI — `bin/blackbar` (works with any app, clipboard-friendly)
+
+Text comes from the argument **or** stdin. **Only the result goes to stdout**; diagnostics
+go to stderr, so pipes/clipboards stay clean. Key resolution order: `--key` →
+`$BLACKBAR_KEY` → `$BLACKBAR_KEY_FILE` (default `~/.config/blackbar/key`).
+
+| Command | Arguments | stdout (result) | stderr (diagnostics) |
 | --- | --- | --- | --- |
-| **Hooks** (`PRESIDIO_GUARD_RESULT_MODE=encrypt`) | Claude Code | automatic for tool results | a local key |
-| **`blackbar` CLI + clipboard hotkey** | any app — Claude Code, Desktop, the Claude Chrome extension, claude.ai web, Office | manual (one shortcut) | a local key |
-| **Streaming proxy** (`ANTHROPIC_BASE_URL`) | Claude Code | fully transparent | a **Console API key** |
+| `blackbar scan [text]` | `--language` | one tab-separated line per hit: `TYPE  start-end  score  match` | `N entity(ies) found` |
+| `blackbar enc [text]` | `--key`, `--language` | text with `<ENC:…>` tokens | `encrypted N value(s): TYPES` |
+| `blackbar dec [text]` | `--key` | text with originals restored | `restored N token(s)` |
+| `blackbar keygen` | `--out`, `--force` | — | path of the new `0600` key file |
 
-On a **Pro/Max subscription** (no API key) the proxy is not an option — Anthropic
-prohibits routing subscription tokens through a proxy — so reach for the hooks
-(Claude Code) and the universal CLI/clipboard flow (everywhere else). Set up a
-key once with `blackbar keygen`. Full design, trade-offs, and honesty:
+```console
+$ blackbar scan --language es "me llamo Ada Lovelace y mi DNI es 12345678Z"
+PERSON   9-21    0.85   Ada Lovelace
+ES_NIF   34-43   1.0    12345678Z
+[blackbar] 2 entity(ies) found
 
-- [`docs/architecture-anonymization.md`](docs/architecture-anonymization.md) — the three paths in detail
-- [`docs/clipboard.md`](docs/clipboard.md) — copy-paste clipboard hotkey recipes (macOS/Linux/Windows)
-- [`proxy/README.md`](proxy/README.md) — the transparent streaming proxy
+$ blackbar enc --language es "email ada@example.com"
+email <ENC:EMAIL_ADDRESS:AZy0IiK2LXg6sIEz…>
+[blackbar] encrypted 1 value(s): EMAIL_ADDRESS
 
-## Repo layout
+$ pbpaste | blackbar enc | pbcopy     # clipboard round-trip (macOS; wl-paste/wl-copy on Linux)
+```
+
+#### B. Slash commands (Claude Code)
+
+Thin wrappers that call the MCP tools and present the result in chat.
+
+| Command | Arguments | What it does |
+| --- | --- | --- |
+| `/blackbar:scan` | `[text or file]` | lists detected PII (→ `presidio_analyze`) |
+| `/blackbar:anonymize` | `[text] [--operator replace\|mask\|hash\|redact\|encrypt]` | returns a censored copy (→ `presidio_anonymize`); default `replace`; for `encrypt` it asks for a key first |
+| `/blackbar:decrypt` | `[text]` | restores `<ENC:…>` tokens (→ `presidio_decrypt`) with your key |
+
+#### C. MCP tools (Claude Code **and** Claude Desktop)
+
+Programmatic tools that return JSON. `key` is required only for `encrypt` / `decrypt`.
+
+**`presidio_analyze(text, language?, entities?)`** — detect PII
+```json
+{ "count": 1,
+  "entities": [ { "entity_type": "EMAIL_ADDRESS", "start": 8, "end": 23, "score": 1.0, "text": "ada@example.com" } ] }
+```
+
+**`presidio_anonymize(text, operator?, language?, entities?, key?)`** — censor (default `operator` = `replace`)
+```json
+{ "text": "me llamo <PERSON> y mi DNI es <ES_NIF>", "entities_found": ["ES_NIF", "PERSON"] }
+```
+With `operator: "encrypt"` (requires `key`):
+```json
+{ "text": "patient <ENC:PERSON:ATG_…> DNI <ENC:ES_NIF:ATG_…>",
+  "entities_found": ["ES_NIF", "PERSON"],
+  "note": "reversible: call presidio_decrypt with the same key" }
+```
+
+**`presidio_decrypt(text, key)`** — restore encrypted values
+```json
+{ "text": "patient Ada Lovelace DNI 12345678Z", "restored": 2 }
+```
+
+### Repository structure
 
 ```
-blackbar-pii-guard/
-├── .claude-plugin/marketplace.json   # Claude Code marketplace catalog
-├── plugins/blackbar/                 # the Claude Code plugin (hooks + MCP + skill)
-│   ├── hooks/hooks.json
-│   ├── scripts/                      # pii_filter, presidio_client, mcp_server,
-│   │                                 #   bb_crypto, bb_key, blackbar_cli
+myrmion-blackbar-pii-guard/
+├── plugins/blackbar/                 # the Claude Code plugin
+│   ├── hooks/hooks.json              # UserPromptSubmit / PreToolUse / PostToolUse / MessageDisplay
+│   ├── scripts/                      # pii_filter, presidio_client, mcp_server, bb_crypto, bb_key, blackbar_cli
 │   ├── commands/{scan,anonymize,decrypt}.md
-│   ├── skills/pii-handling/SKILL.md
-│   └── docker-compose.yml            # local Presidio analyzer service
-├── bin/blackbar                      # universal local enc/dec CLI launcher
-├── desktop/                          # the Claude Desktop extension (.mcpb source)
-│   ├── manifest.json
-│   └── server/index.js               # zero-dependency Node MCP server
-├── proxy/blackbar_proxy.py           # transparent streaming proxy (Console API key)
-├── docs/
-│   ├── architecture-anonymization.md # the three anonymization paths
-│   ├── clipboard.md                  # clipboard-hotkey recipes
-│   └── custom-presidio-image.md      # build & publish your own analyzer image
-└── assets/banner.svg
+│   ├── docker-compose.yml            # analyzer service (Docker option)
+│   └── presidio-native/              # the analyzer (shared by Docker AND no-Docker)
+│       ├── analyzer_service.py       # SINGLE SOURCE OF TRUTH for detection coverage
+│       ├── zeroshot.py               # optional Layer 2 (Art. 9 zero-shot)
+│       ├── setup.sh / run.sh / Dockerfile
+│       ├── requirements.txt · requirements-zeroshot.txt
+│       └── validate.py               # multilingual validation corpus + harness
+├── bin/blackbar                      # universal enc/dec/scan/keygen CLI
+├── desktop/                          # Claude Desktop extension (.mcpb) — Node MCP server
+├── proxy/blackbar_proxy.py           # transparent streaming proxy (API key)
+└── docs/                             # architecture & clipboard recipes
 ```
 
-## Bring your own Presidio image
+### Claude Code settings (environment variables)
 
-Want Spanish detection (DNI/NIF) or your own internal ID recognizers? Build a custom
-analyzer image and publish it to your registry. See
-[`docs/custom-presidio-image.md`](docs/custom-presidio-image.md).
+| Variable | Values | Default | Meaning |
+| --- | --- | --- | --- |
+| `PRESIDIO_GUARD_MODE` | `service`,`library` | `service` | detection backend |
+| `PRESIDIO_ANALYZER_URL` | URL | `http://localhost:5002` | analyzer endpoint |
+| `PRESIDIO_GUARD_TIMEOUT` | seconds | `8` | analyzer HTTP request timeout |
+| `PRESIDIO_GUARD_OPERATOR` | `replace`,`redact`,`mask`,`hash` | `replace` | how PII is rewritten |
+| `PRESIDIO_GUARD_LANGUAGE` | `en`,`es`,`fr`,`de`,`it`,`pt` | `en` | detection language |
+| `PRESIDIO_GUARD_THRESHOLD` | `0.0`–`1.0` | `0.5` | minimum confidence to act |
+| `PRESIDIO_GUARD_ENTITIES` | comma list | (all) | restrict to entity types |
+| `PRESIDIO_GUARD_PROMPT_POLICY` | `warn`,`block`,`off` | `warn` | prompt boundary |
+| `PRESIDIO_GUARD_EGRESS_POLICY` | `ask`,`block`,`warn`,`off` | `ask` | outbound requests |
+| `PRESIDIO_GUARD_RESULT_REDACTION` | `on`,`off` | `on` | scrub tool results |
+| `PRESIDIO_GUARD_RESULT_MODE` | `redact`,`encrypt` | `redact` | one-way vs reversible |
+| `PRESIDIO_GUARD_INPUT_DECRYPT` | `on`,`off` | `off` | decrypt `<ENC:…>` in local tool inputs |
+| `PRESIDIO_GUARD_DISPLAY_REDACTION` | `on`,`off` | `off` | redact on-screen text |
+| `PRESIDIO_GUARD_FAIL` | `open`,`closed` | `open` | behavior if analyzer is down |
+| `BLACKBAR_KEY` / `BLACKBAR_KEY_FILE` | string / path | — / `~/.config/blackbar/key` | key for `encrypt` & CLI |
 
-## Limitations & honesty
+### Analyzer settings
 
-- Presidio is high-recall, not infallible — keep a human in the loop for regulated data.
-- Prompts can't be silently redacted, only warned on or blocked.
-- `PreToolUse` inspects network tools; it does not rewrite Bash commands (that would
-  change what actually executes).
-- Claude Desktop gets the on-demand tools, not the automatic hooks.
-- Not affiliated with or endorsed by Anthropic or Microsoft.
+`BLACKBAR_LANGUAGES` (default `en,es,fr,de,it,pt`), `BLACKBAR_MODEL_SIZE` (`md`/`lg`),
+`PORT` (3000 in Docker, 5002 native), `BLACKBAR_ENABLE_ZEROSHOT` (`1` to enable Layer 2).
+
+### Adding your own detection
+
+Coverage lives in
+[`plugins/blackbar/presidio-native/analyzer_service.py`](plugins/blackbar/presidio-native/analyzer_service.py)
+(shared by native and Docker). Append a regex + context words to `CUSTOM`, or terms to
+`SPECIAL_CATEGORIES`, then restart `./run.sh` (native) or rebuild the image (Docker).
+
+### Validate detection
+
+```bash
+python3 plugins/blackbar/presidio-native/validate.py http://localhost:5002
+# prints per-document coverage across a dense multilingual corpus
+```
+
+### A) Completely new to the terminal?
+
+- **macOS:** press `⌘ + Space`, type `Terminal`, press Enter. Install tools with
+  [Homebrew](https://brew.sh): `brew install python git`.
+- **Windows:** install WSL (open PowerShell, run `wsl --install`, restart), then open
+  *Ubuntu* from the Start menu; inside it run `sudo apt update && sudo apt install -y python3 python3-venv git`.
+- **Linux:** open *Terminal*; on Ubuntu/Debian run `sudo apt install -y python3 python3-venv git`.
+
+Then follow §6. You only ever copy-paste the commands shown.
 
 ## License
 

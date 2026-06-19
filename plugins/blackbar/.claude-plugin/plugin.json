@@ -1,12 +1,12 @@
 {
   "name": "blackbar",
-  "description": "Detect and redact PII with Microsoft Presidio across Claude Code and Claude for VS Code: scrubs tool results before the model sees them, gates outbound requests, and exposes analyze/anonymize tools.",
-  "version": "0.2.0",
+  "description": "Myrmion blackbar — detect and redact PII/PHI/financial data with Microsoft Presidio across Claude Code and Claude for VS Code: scrubs tool results before the model sees them, gates outbound requests, and exposes analyze/anonymize tools.",
+  "version": "0.3.0",
   "author": {
     "name": "e2its"
   },
-  "homepage": "https://github.com/e2its/blackbar-pii-guard",
-  "repository": "https://github.com/e2its/blackbar-pii-guard",
+  "homepage": "https://github.com/e2its/myrmion-blackbar-pii-guard",
+  "repository": "https://github.com/e2its/myrmion-blackbar-pii-guard",
   "license": "MIT",
   "keywords": ["privacy", "pii", "presidio", "redaction", "security", "compliance"],
   "category": "security",
