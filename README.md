@@ -62,8 +62,8 @@ variables (see [`plugins/blackbar/README.md`](plugins/blackbar/README.md)).
 ## Quickstart — Claude Desktop
 
 ```bash
-# Same analyzer service
-docker run -d -p 5002:3000 mcr.microsoft.com/presidio-analyzer:latest
+# Same analyzer service as Claude Code (one local container on port 5002)
+docker compose -f plugins/blackbar/docker-compose.yml up -d
 ```
 
 Then drag **`blackbar.mcpb`** onto Claude Desktop (or Settings → Extensions →

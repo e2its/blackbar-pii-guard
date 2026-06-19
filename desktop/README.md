@@ -27,7 +27,13 @@ inside the desktop app and install the Claude Code plugin there.
 
 - **No runtime to install** — Claude Desktop bundles Node, and this server has
   zero npm dependencies.
-- A running **Presidio Analyzer** (detection runs locally on your machine):
+- A running **Presidio Analyzer** (detection runs locally on your machine). Use
+  the same multilingual service as Claude Code, from a clone of this repo:
+  ```bash
+  docker compose -f plugins/blackbar/docker-compose.yml up -d
+  ```
+  Or, if you only have the `.mcpb` and no repo, run the English-only baseline
+  image directly:
   ```bash
   docker run -d -p 5002:3000 mcr.microsoft.com/presidio-analyzer:latest
   ```
