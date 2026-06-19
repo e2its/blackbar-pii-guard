@@ -59,14 +59,18 @@ the Claude Chrome extension, Office add-ins, claude.ai web, and Claude Code**.
 
 Friction: it is a hotkey/command, not invisible. But it is universal.
 
-### Path 3 — Local streaming proxy (API key only, fully transparent)
+### Path 3 — Local streaming proxy (API key only, fully transparent) ✅ MVP
 A local server implementing the Anthropic Messages API (`/v1/messages`) with
 **SSE streaming**, pointed to by `ANTHROPIC_BASE_URL`. Encrypts every text block
 on the way out, decrypts `<ENC:…>` on the way back — including tokens split
-across stream chunks. Requires a **Console API key** (subscription OAuth is
-prohibited). Works with Claude Code only (Desktop cannot set a base URL).
+across stream chunks (held back and flushed on `content_block_stop`). Requires a
+**Console API key** (subscription OAuth is prohibited). Works with Claude Code
+only (Desktop cannot set a base URL).
 
-Build streaming-first (no non-streaming MVP), per decision.
+Implemented in [`../proxy/blackbar_proxy.py`](../proxy/blackbar_proxy.py); see
+[`../proxy/README.md`](../proxy/README.md). Core transforms (request encryption,
+streaming split-token reassembly, non-streaming decrypt) are unit-tested; the
+HTTP plumbing needs a live Console key to exercise end-to-end.
 
 ### Path 4 — Browser extension (optional, transparent on web)
 A content script that encrypts the input box on submit and decrypts `<ENC:…>` in
