@@ -13,8 +13,9 @@
 <p align="center">
   <b>blackbar</b> keeps personal data out of the model. It detects PII with
   <a href="https://github.com/microsoft/presidio">Microsoft Presidio</a> and
-  redacts it at the boundaries where it matters — automatically in Claude Code,
-  on demand in Claude Desktop.
+  scrubs it at the boundaries where it matters — automatically in Claude Code,
+  on demand in Claude Desktop. Scrubbing can be one-way <i>or</i> <b>reversible</b>:
+  encrypt PII into tokens and restore the originals later with your key.
 </p>
 
 ---
@@ -86,6 +87,28 @@ Code and Claude Desktop. The other operators are one-way.
 Slash commands in Claude Code: `/blackbar:scan`, `/blackbar:anonymize`, and
 `/blackbar:decrypt`.
 
+## Reversible round-trip — and using it on a Pro/Max subscription
+
+`encrypt` is the reversible operator: each value becomes a self-contained
+`<ENC:TYPE:…>` token you can restore locally with your key, so you can work over
+anonymized text and de-anonymize the result. How *transparent* that is depends on
+the surface — there are three paths:
+
+| Path | Where | Transparency | Needs |
+| --- | --- | --- | --- |
+| **Hooks** (`PRESIDIO_GUARD_RESULT_MODE=encrypt`) | Claude Code | automatic for tool results | a local key |
+| **`blackbar` CLI + clipboard hotkey** | any app — Claude Code, Desktop, the Claude Chrome extension, claude.ai web, Office | manual (one shortcut) | a local key |
+| **Streaming proxy** (`ANTHROPIC_BASE_URL`) | Claude Code | fully transparent | a **Console API key** |
+
+On a **Pro/Max subscription** (no API key) the proxy is not an option — Anthropic
+prohibits routing subscription tokens through a proxy — so reach for the hooks
+(Claude Code) and the universal CLI/clipboard flow (everywhere else). Set up a
+key once with `blackbar keygen`. Full design, trade-offs, and honesty:
+
+- [`docs/architecture-anonymization.md`](docs/architecture-anonymization.md) — the three paths in detail
+- [`docs/clipboard.md`](docs/clipboard.md) — copy-paste clipboard hotkey recipes (macOS/Linux/Windows)
+- [`proxy/README.md`](proxy/README.md) — the transparent streaming proxy
+
 ## Repo layout
 
 ```
@@ -93,13 +116,20 @@ blackbar-pii-guard/
 ├── .claude-plugin/marketplace.json   # Claude Code marketplace catalog
 ├── plugins/blackbar/                 # the Claude Code plugin (hooks + MCP + skill)
 │   ├── hooks/hooks.json
-│   ├── scripts/{pii_filter,presidio_client,mcp_server}.py
-│   ├── commands/{scan,anonymize}.md
-│   └── skills/pii-handling/SKILL.md
+│   ├── scripts/                      # pii_filter, presidio_client, mcp_server,
+│   │                                 #   bb_crypto, bb_key, blackbar_cli
+│   ├── commands/{scan,anonymize,decrypt}.md
+│   ├── skills/pii-handling/SKILL.md
+│   └── docker-compose.yml            # local Presidio analyzer service
+├── bin/blackbar                      # universal local enc/dec CLI launcher
 ├── desktop/                          # the Claude Desktop extension (.mcpb source)
 │   ├── manifest.json
 │   └── server/index.js               # zero-dependency Node MCP server
-├── docs/custom-presidio-image.md     # build & publish your own analyzer image
+├── proxy/blackbar_proxy.py           # transparent streaming proxy (Console API key)
+├── docs/
+│   ├── architecture-anonymization.md # the three anonymization paths
+│   ├── clipboard.md                  # clipboard-hotkey recipes
+│   └── custom-presidio-image.md      # build & publish your own analyzer image
 └── assets/banner.svg
 ```
 
