@@ -23,11 +23,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
 def _fresh_dir() -> str:
+    import pii_audit
+
     d = tempfile.mkdtemp(prefix="bb-audit-test-")
     os.environ["BLACKBAR_AUDIT_ENABLED"] = "1"
     os.environ["BLACKBAR_AUDIT_DIR"] = d
     os.environ["PII_AUDIT_SALT"] = "test-salt"
     os.environ.pop("BLACKBAR_AUDIT_RETENTION_DAYS", None)
+    # Reset the once-per-day prune guard so each sub-test's dir is independent.
+    pii_audit._pruned_for_day = None
     return d
 
 

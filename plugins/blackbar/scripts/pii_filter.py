@@ -249,7 +249,7 @@ def handle_post_tool_use(data: dict, client: PresidioClient) -> None:
         # Record what the anonymization actually did, so the trail shows the
         # operation (and any encrypt->redact fallback), not just the detection.
         if mode == "encrypt" and key:
-            pii_audit.record_op(client.source, "encrypt", count, requested="encrypt")
+            pii_audit.record_op(client.source, "encrypt", count)
         elif mode == "encrypt" and not key:
             pii_audit.record_op(
                 client.source, client.cfg.operator, count,

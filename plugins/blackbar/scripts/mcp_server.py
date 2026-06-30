@@ -154,8 +154,10 @@ def tool_anonymize(args: dict) -> str:
     # duplicate audit record for the same input).
     spans = client.analyze(text)
     redacted = _apply_operator(text, spans, operator)
-    if spans:
-        pii_audit.record_op("mcp:presidio_anonymize", operator, len(spans))
+    # Count what is actually rewritten (overlaps are dropped), not raw detections.
+    resolved = _resolve_overlaps(spans)
+    if resolved:
+        pii_audit.record_op("mcp:presidio_anonymize", operator, len(resolved))
     return json.dumps(
         {"text": redacted, "entities_found": sorted({s.entity_type for s in spans})},
         indent=2,
@@ -167,9 +169,10 @@ def _anonymize_encrypt(client: PresidioClient, text: str, key: str) -> str:
         return json.dumps({"error": "operator=encrypt requires a 'key'."})
     spans = client.analyze(text)
     # Apply right-to-left so earlier offsets stay valid as tokens change length.
-    encrypted = bb_crypto.encrypt_spans(text, _resolve_overlaps(spans), key)
-    if spans:
-        pii_audit.record_op("mcp:presidio_anonymize", "encrypt", len(spans))
+    resolved = _resolve_overlaps(spans)
+    encrypted = bb_crypto.encrypt_spans(text, resolved, key)
+    if resolved:
+        pii_audit.record_op("mcp:presidio_anonymize", "encrypt", len(resolved))
     return json.dumps(
         {
             "text": encrypted,

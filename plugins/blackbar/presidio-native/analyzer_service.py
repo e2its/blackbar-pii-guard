@@ -238,5 +238,7 @@ if __name__ == "__main__":
     # Bind to localhost by default: this service processes PII, so it must not
     # be reachable from the LAN unless you opt in. In Docker the port mapping
     # requires binding all interfaces, so the image sets BLACKBAR_BIND_HOST=0.0.0.0.
-    host = os.environ.get("BLACKBAR_BIND_HOST", "127.0.0.1")
+    # An empty BLACKBAR_BIND_HOST (e.g. set but blank in CI templating) would make
+    # Flask bind every interface; fall back to localhost so PII stays off the LAN.
+    host = os.environ.get("BLACKBAR_BIND_HOST", "").strip() or "127.0.0.1"
     app.run(host=host, port=int(os.environ.get("PORT", "3000")), threaded=True)

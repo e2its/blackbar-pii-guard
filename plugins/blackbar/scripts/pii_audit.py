@@ -140,7 +140,9 @@ def _emit(rec: dict) -> None:
         os.makedirs(directory, exist_ok=True)
         now = datetime.now(timezone.utc)
         day = now.strftime("%Y-%m-%d")
-        line = json.dumps({"ts": now.isoformat(), **rec}, ensure_ascii=False) + "\n"
+        # The audit owns "ts": strip any caller-supplied one so it can't be forged.
+        body = {k: v for k, v in rec.items() if k != "ts"}
+        line = json.dumps({"ts": now.isoformat(), **body}, ensure_ascii=False) + "\n"
         path = os.path.join(directory, f"pii-audit-{day}.jsonl")
         # In-process lock for proxy/MCP threads; flock for concurrent processes.
         # Both keep one record's bytes from interleaving with another's.
