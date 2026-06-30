@@ -114,17 +114,17 @@ TOOLS = [
 ]
 
 
-def _client(language: str | None, entities: list | None) -> PresidioClient:
+def _client(language: str | None, entities: list | None, source: str = "mcp") -> PresidioClient:
     cfg = Config.load()
     if language:
         cfg.language = language
     if entities:
         cfg.entities = tuple(entities)
-    return PresidioClient(cfg)
+    return PresidioClient(cfg, source=source)
 
 
 def tool_analyze(args: dict) -> str:
-    client = _client(args.get("language"), args.get("entities"))
+    client = _client(args.get("language"), args.get("entities"), "mcp:presidio_analyze")
     text = args.get("text", "")
     spans = client.analyze(text)
     findings = [
@@ -143,15 +143,16 @@ def tool_analyze(args: dict) -> str:
 def tool_anonymize(args: dict) -> str:
     operator = args.get("operator", "replace")
     text = args.get("text", "")
-    client = _client(args.get("language"), args.get("entities"))
+    client = _client(args.get("language"), args.get("entities"), "mcp:presidio_anonymize")
 
     if operator == "encrypt":
         return _anonymize_encrypt(client, text, args.get("key", ""))
 
-    redacted, spans = client.redact(text) if operator == client.cfg.operator else (
-        _apply_operator(text, client.analyze(text), operator),
-        client.analyze(text),
-    )
+    # Detect once, then apply the requested operator to those spans -- never
+    # re-analyze (a second analyze() means a second service round-trip and a
+    # duplicate audit record for the same input).
+    spans = client.analyze(text)
+    redacted = _apply_operator(text, spans, operator)
     return json.dumps(
         {"text": redacted, "entities_found": sorted({s.entity_type for s in spans})},
         indent=2,

@@ -34,6 +34,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any, Iterable
 
+import pii_audit
+
 
 # --------------------------------------------------------------------------- #
 # Configuration
@@ -67,26 +69,43 @@ class Span:
     start: int
     end: int
     score: float
+    # Optional Presidio "decision process": why this span was detected
+    # ({"recognizer": ..., "pattern_name": ...}). Populated only when the audit
+    # trail is enabled, so the normal hot path stays untouched. Never holds the
+    # matched value -- only the recognizer/pattern metadata.
+    explanation: dict | None = None
 
 
 # --------------------------------------------------------------------------- #
 # Detection backends
 # --------------------------------------------------------------------------- #
 class PresidioClient:
-    def __init__(self, config: Config | None = None) -> None:
+    def __init__(self, config: Config | None = None, source: str = "unknown") -> None:
         self.cfg = config or Config.load()
+        self.source = source  # caller label for the audit trail
         self._engine = None  # lazily built AnalyzerEngine for library mode
 
     # -- public API -------------------------------------------------------- #
     def analyze(self, text: str) -> list[Span]:
-        """Return PII spans found in `text`, filtered by score threshold."""
+        """Return PII spans found in `text`, filtered by score threshold.
+
+        Every call is the single detection chokepoint for hooks, the MCP
+        server, the CLI and the proxy, so it is also where the (opt-in) audit
+        trail is emitted -- reusing the spans just computed, never re-detecting.
+        """
         if not text or not text.strip():
             return []
+        # Ask Presidio for the decision process only when we will audit it.
+        decision = pii_audit.enabled()
         if self.cfg.mode == "library":
-            raw = self._analyze_library(text)
+            raw = self._analyze_library(text, decision)
         else:
-            raw = self._analyze_service(text)
-        return [s for s in raw if s.score >= self.cfg.threshold]
+            raw = self._analyze_service(text, decision)
+        spans = [s for s in raw if s.score >= self.cfg.threshold]
+        if decision:
+            redacted = _apply_operator(text, spans, self.cfg.operator) if spans else text
+            pii_audit.record(text, spans, self.source, self.cfg, redacted)
+        return spans
 
     def redact(self, text: str) -> tuple[str, list[Span]]:
         """Return (redacted_text, spans). Applies the configured operator."""
@@ -133,10 +152,12 @@ class PresidioClient:
         return self.map_strings(value, _transform)
 
     # -- service backend --------------------------------------------------- #
-    def _analyze_service(self, text: str) -> list[Span]:
+    def _analyze_service(self, text: str, decision_process: bool = False) -> list[Span]:
         payload: dict[str, Any] = {"text": text, "language": self.cfg.language}
         if self.cfg.entities:
             payload["entities"] = list(self.cfg.entities)
+        if decision_process:
+            payload["return_decision_process"] = True
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
             self.cfg.analyzer_url.rstrip("/") + "/analyze",
@@ -152,18 +173,29 @@ class PresidioClient:
                 f"Presidio analyzer unreachable at {self.cfg.analyzer_url}: {exc}"
             ) from exc
         return [
-            Span(r["entity_type"], int(r["start"]), int(r["end"]), float(r.get("score", 1.0)))
+            Span(
+                r["entity_type"],
+                int(r["start"]),
+                int(r["end"]),
+                float(r.get("score", 1.0)),
+                r.get("analysis_explanation"),
+            )
             for r in results
         ]
 
     # -- library backend --------------------------------------------------- #
-    def _analyze_library(self, text: str) -> list[Span]:
+    def _analyze_library(self, text: str, decision_process: bool = False) -> list[Span]:
         engine = self._get_engine()
         kwargs: dict[str, Any] = {"text": text, "language": self.cfg.language}
         if self.cfg.entities:
             kwargs["entities"] = list(self.cfg.entities)
+        if decision_process:
+            kwargs["return_decision_process"] = True
         results = engine.analyze(**kwargs)
-        return [Span(r.entity_type, r.start, r.end, r.score) for r in results]
+        return [
+            Span(r.entity_type, r.start, r.end, r.score, _explain(r) if decision_process else None)
+            for r in results
+        ]
 
     def _get_engine(self):
         if self._engine is None:
@@ -215,6 +247,25 @@ def _apply_operator(text: str, spans: Iterable[Span], operator: str) -> str:
         original = out[span.start : span.end]
         out = out[: span.start] + _replacement(original, span.entity_type, operator) + out[span.end :]
     return out
+
+
+def _explain(result: Any) -> dict | None:
+    """Extract the PII-safe part of a Presidio decision process: which
+    recognizer fired and which named pattern. Never the matched value.
+    Returns None when no explanation is attached.
+
+    Mirrored by ``analyzer_service._explain`` (the analyzer service is a
+    separately-deployable artifact with its own venv/Docker image, so the two
+    cannot share an import). Keep the two in sync.
+    """
+    exp = getattr(result, "analysis_explanation", None)
+    if not exp:
+        return None
+    recognizer = getattr(exp, "recognizer", None)
+    pattern_name = getattr(exp, "pattern_name", None)
+    if recognizer is None and pattern_name is None:
+        return None
+    return {"recognizer": recognizer, "pattern_name": pattern_name}
 
 
 class PresidioUnavailable(RuntimeError):

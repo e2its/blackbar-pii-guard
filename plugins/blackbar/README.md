@@ -110,9 +110,60 @@ All behavior is controlled by environment variables:
 | `BLACKBAR_KEY` / `BLACKBAR_KEY_FILE` | string / path | — / `~/.config/blackbar/key` | Session key for `encrypt` mode and the `blackbar` CLI. Create one with `blackbar keygen`. |
 | `PRESIDIO_GUARD_DISPLAY_REDACTION` | `on`, `off` | `off` | Redact on-screen text |
 | `PRESIDIO_GUARD_FAIL` | `open`, `closed` | `open` | Behavior when Presidio is unreachable |
+| `BLACKBAR_AUDIT_ENABLED` | `1`/`true`/`on`, off | off | Write a PII-safe audit record for every detector call |
+| `BLACKBAR_AUDIT_DIR` | path | `$XDG_DATA_HOME/blackbar/audit` | Where audit day-files are stored |
+| `BLACKBAR_AUDIT_RETENTION_DAYS` | integer | `90` | Days to keep audit files; `<=0` keeps them forever |
+| `PII_AUDIT_SALT` | string | — | Secret salt for fingerprints — **set a real secret in production** |
 
 `fail=open` keeps you working (with a one-line notice) if the analyzer is down;
 `fail=closed` blocks instead — choose based on your risk posture.
+
+## Audit trail (opt-in)
+
+Set `BLACKBAR_AUDIT_ENABLED=1` and every PII detection — from hooks, the MCP
+server, the CLI and the proxy — is logged at the single chokepoint
+(`PresidioClient.analyze`), reusing the spans already computed (no re-detection).
+
+The log is designed so it can never be the leak: it stores a salted SHA-256
+**fingerprint** of the input (correlate identical inputs without keeping them),
+the redacted text, and each entity's type/score/span — **never the raw PII**.
+Set `PII_AUDIT_SALT` to a real secret kept in your secrets manager, not in code.
+
+Each entity also records *why* it was detected — the Presidio **recognizer** and
+named **pattern** (e.g. `EmailRecognizer` / `Email (Medium)`, or `SpacyRecognizer`
+with a null pattern for NER hits). This decision process is requested only while
+auditing is enabled, so the normal detection path is untouched; it works in both
+`service` mode (the analyzer returns it on request) and `library` mode. A sample
+record:
+
+```json
+{
+  "ts": "2026-06-30T08:48:59Z", "source": "cli:scan",
+  "fingerprint": "be6bdae9ff1fee1a", "lang": "es", "mode": "service",
+  "n_entities": 2,
+  "entities": [
+    {"type": "EMAIL_ADDRESS", "score": 1.0, "start": 23, "end": 45,
+     "recognizer": "EmailRecognizer", "pattern": "Email (Medium)"},
+    {"type": "PERSON", "score": 0.85, "start": 11, "end": 21,
+     "recognizer": "SpacyRecognizer", "pattern": null}
+  ],
+  "redacted": "El cliente <PERSON> (<EMAIL_ADDRESS>) llamo desde +34 600 123 456"
+}
+```
+
+Records are appended as JSON lines, one file per UTC day
+(`pii-audit-YYYY-MM-DD.jsonl`) under `BLACKBAR_AUDIT_DIR`. Retention works by
+deleting whole day-files: when the day rolls over, files older than
+`BLACKBAR_AUDIT_RETENTION_DAYS` (default 90) are pruned automatically
+(storage-limitation, GDPR Art. 5(1)(e)). The fingerprint is one-way, so
+per-subject erasure is neither possible nor needed — the retention window is the
+control. Manage the trail by hand with:
+
+```bash
+blackbar audit stats          # files, record count, days, size
+blackbar audit prune          # delete files past the retention window now
+blackbar audit purge --yes    # delete every audit file
+```
 
 ## Test it without Claude
 
